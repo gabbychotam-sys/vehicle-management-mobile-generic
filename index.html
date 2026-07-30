@@ -734,6 +734,23 @@
     <!-- Send all cases by email -->
     <button class="modal-btn primary" onclick="emailAllCases()" style="width:100%;margin-top:14px;background:var(--primary-color);">📧 שלח לי את כל התיקים שלי במייל</button>
 
+    <!-- Firebase connection -->
+    <div class="modal-label" style="margin-top:18px;font-size:24px;color:var(--primary-color);font-weight:700;border-top:2px solid #eee;padding-top:14px;">☁️ חיבור לתוכנת המחשב</div>
+    <div style="font-size:14px;color:#666;margin-bottom:10px;line-height:1.6;">
+      יש להזין כאן את <b>אותם 3 הפרטים</b> שהוזנו בתוכנת המחשב (הגדרות ← Firebase),
+      כדי שהתיקים יסתנכרנו בין הנייד למחשב.
+    </div>
+    <div class="modal-label">API Key</div>
+    <input id="mob-fb-apiKey" class="modal-input" dir="ltr" placeholder="AIzaSy...">
+    <div class="modal-label">Database URL</div>
+    <input id="mob-fb-dbUrl" class="modal-input" dir="ltr" placeholder="https://xxx-default-rtdb...firebasedatabase.app">
+    <div class="modal-label">Project ID</div>
+    <input id="mob-fb-projectId" class="modal-input" dir="ltr" placeholder="my-project-12345">
+    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+      <button class="modal-btn primary" onclick="saveMobFbCfg()" style="background:var(--primary-color);">💾 שמור והתחבר</button>
+      <span id="mob-fb-status" style="font-size:14px;color:#666;">לא מוגדר</span>
+    </div>
+
     <!-- Appearance -->
     <div class="modal-label" style="margin-top:18px;font-size:24px;color:var(--primary-color);font-weight:700;border-top:2px solid #eee;padding-top:14px;">🎨 מראה האפליקציה</div>
 
@@ -1588,7 +1605,39 @@ function openSettings() {
     onCfgInspectorChange();
   }
   applyTheme(); // refresh active states
+  fillMobFbCfg();
   document.getElementById('settings-modal').classList.add('open');
+}
+
+function fillMobFbCfg() {
+  var cfg = loadCfg();
+  var a = document.getElementById('mob-fb-apiKey');
+  var d = document.getElementById('mob-fb-dbUrl');
+  var p = document.getElementById('mob-fb-projectId');
+  if (a) a.value = cfg.apiKey || '';
+  if (d) d.value = cfg.databaseURL || '';
+  if (p) p.value = cfg.projectId || '';
+  var status = document.getElementById('mob-fb-status');
+  if (status) status.textContent = fbReady ? '✓ מחובר' : (cfg.apiKey ? 'מוגדר, לא מחובר' : 'לא מוגדר');
+}
+
+function saveMobFbCfg() {
+  var cfg = {
+    apiKey: (document.getElementById('mob-fb-apiKey') || {}).value || '',
+    databaseURL: (document.getElementById('mob-fb-dbUrl') || {}).value || '',
+    projectId: (document.getElementById('mob-fb-projectId') || {}).value || ''
+  };
+  cfg.apiKey = cfg.apiKey.trim();
+  cfg.databaseURL = cfg.databaseURL.trim();
+  cfg.projectId = cfg.projectId.trim();
+  if (!cfg.apiKey || !cfg.databaseURL) {
+    alert('יש למלא לפחות API Key ו-Database URL');
+    return;
+  }
+  saveCfg(cfg);
+  initFirebase();
+  var status = document.getElementById('mob-fb-status');
+  if (status) status.textContent = '✓ נשמר';
 }
 
 // Show info when user picks a name in settings dropdown
