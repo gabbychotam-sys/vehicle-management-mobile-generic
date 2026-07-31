@@ -823,6 +823,12 @@ function saveCfg(c) { try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } 
 // encodes this link auto-configures the app — no manual typing needed.
 // Then strip the params from the visible URL so they don't linger in
 // history/screenshots.
+// v1.0: if the link also carries name/email/phone (a per-employee QR code,
+// not just a generic connection QR), save that as the logged-in inspector
+// too - _finishLoginSuccess elsewhere is what normally does this after
+// picking a name from the list; here it happens automatically before the
+// login screen is even shown, so scanning a personal QR skips login entirely.
+var _urlImportedInspector = null;
 (function _importConfigFromUrl() {
   try {
     var params = new URLSearchParams(window.location.search);
@@ -831,6 +837,11 @@ function saveCfg(c) { try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } 
     var projectId = params.get('projectId');
     if (apiKey && databaseURL) {
       saveCfg({ apiKey: apiKey, databaseURL: databaseURL, projectId: projectId || '' });
+      var name = params.get('name');
+      if (name) {
+        _urlImportedInspector = { name: name, email: params.get('email') || '', phone: params.get('phone') || '', role: '' };
+        saveInspector(_urlImportedInspector);
+      }
       var cleanUrl = window.location.origin + window.location.pathname;
       window.history.replaceState({}, document.title, cleanUrl);
     }
@@ -3829,6 +3840,14 @@ function goBackFromView() {
   // v3.37: pre-select last inspector. If biometric is enrolled, show the
   // waiting pane (main UI hidden) and auto-fire the Face ID / fingerprint
   // dialog. If biometric fails or is cancelled, the main pane is revealed.
+  // v1.0: a personal QR code (with name/email/phone baked in) skips the
+  // login screen entirely — the phone already knows who's using it.
+  if (_urlImportedInspector) {
+    refreshHomeUser();
+    showScreen('home');
+    return;
+  }
+
   try { populateInspectorDropdown(); } catch(e){}
   var insp = loadInspector();
   if (insp) {
