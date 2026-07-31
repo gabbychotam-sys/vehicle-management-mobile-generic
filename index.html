@@ -895,6 +895,17 @@ function initFirebase() {
         fbAuth.onAuthStateChanged(function(user) {
           handleAuthStateChange(user);
         });
+        // v1.0: sign in anonymously immediately, before anything else tries to
+        // read the database. The DB rules require auth != null; without this,
+        // the very first read (probeAuthRequired, 2.5s later) always failed
+        // with PERMISSION_DENIED and popped the OLD email+password #auth-overlay
+        // on top of everything - completely independent of, and overriding,
+        // the whole scr-login/scr-verify-phone/scr-home flow built today. This
+        // is genuinely why every fix looked like it "didn't work" - it was
+        // this separate, unrelated gate winning the race every time.
+        if (!fbAuth.currentUser) {
+          fbAuth.signInAnonymously().catch(function(e) { console.warn('[anon signin] failed:', e); });
+        }
       }
     } catch(e) { console.warn('Auth init skipped:', e); }
 
@@ -944,34 +955,25 @@ function initFirebase() {
 //  AUTH GATE — soft mode (no auth set up) vs hard mode (auth enforced).
 // ═══════════════════════════════════════════════════════════════════
 
+// v1.0: the #auth-overlay email+password gate is now permanently disabled.
+// It was built for an older model with real per-employee Firebase accounts;
+// now every session signs in anonymously right after Firebase connects (see
+// initFirebase), which already satisfies the DB rules (auth != null), so
+// this overlay should never need to appear again. Neutered rather than
+// deleted, in case something else still references these functions/ids.
 function handleAuthStateChange(user) {
   currentAuthUser = user || null;
-  var overlay = document.getElementById('auth-overlay');
-  if (user) {
-    if (overlay) overlay.style.display = 'none';
-    authRequired = true;
-    console.log('[Auth] signed in as', user.email);
-  } else {
-    if (authRequired && overlay) {
-      overlay.style.display = 'flex';
-      // Build the staff name picker (with email auto-fill on selection)
-      // so the user can pick their name and only type the password.
-      if (typeof populateAuthNameDropdown === 'function') populateAuthNameDropdown();
-    }
-  }
 }
 
 function probeAuthRequired() {
   if (!fbDb) return;
   fbDb.ref('cases').limitToFirst(1).once('value')
     .then(function() {
-      if (!currentAuthUser) {
-        authRequired = false;
-        console.log('[Auth] rules are public — login not required');
-      }
+      console.log('[Auth] read check passed');
     })
     .catch(function(err) {
-      if (err && (err.code === 'PERMISSION_DENIED' || /permission/i.test(err.message || ''))) {
+      console.warn('[Auth] read check failed (auth-overlay gate disabled, not shown):', err);
+      if (false) {
         authRequired = true;
         console.log('[Auth] login required — rules are protected');
         if (!currentAuthUser) {
