@@ -867,7 +867,15 @@ function isDeviceVerified() { try { return localStorage.getItem(VERIFIED_KEY) ==
 function setDeviceVerified() { try { localStorage.setItem(VERIFIED_KEY, '1'); } catch (e) {} }
 (function _importConfigFromUrl() {
   try {
-    var params = new URLSearchParams(window.location.search);
+    // v1.0: reading from the HASH fragment now, not the query string.
+    // Confirmed via a live debug readout that a home-screen icon was
+    // loading the bare "index.html" with the query string stripped
+    // completely, every time, regardless of manifest/meta-tag fixes -
+    // testing whether a hash fragment (a structurally different,
+    // never-sent-to-server part of the URL) survives "Add to Home Screen"
+    // bookmark creation where the query string did not.
+    var hash = window.location.hash.replace(/^#/, '');
+    var params = new URLSearchParams(hash);
     var apiKey = params.get('apiKey');
     var databaseURL = params.get('databaseURL');
     var projectId = params.get('projectId');
@@ -878,13 +886,9 @@ function setDeviceVerified() { try { localStorage.setItem(VERIFIED_KEY, '1'); } 
         _urlImportedInspector = { name: name, email: params.get('email') || '', phone: params.get('phone') || '', role: '' };
         saveInspector(_urlImportedInspector);
       }
-      // v1.0: deliberately NOT stripping the query params from the URL here.
-      // If the params are removed, "Add to Home Screen" (what people think of
-      // as "installing" the web app) saves a bookmark to the now-clean,
-      // param-less URL - so every future tap of that home-screen icon loads
-      // with nothing to import, silently falling back to the login screen.
-      // Keeping the params means the saved icon re-applies the identity and
-      // config every single time it's opened, which is what we actually want.
+      // Deliberately NOT clearing window.location.hash - same reasoning as
+      // before: a saved home-screen icon needs the data to still be there
+      // on every future open, not just the first one.
     }
   } catch (e) { console.warn('[_importConfigFromUrl] failed:', e); }
 })();
