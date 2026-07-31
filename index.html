@@ -614,6 +614,27 @@
   </div>
 </div>
 
+<!-- ═══════════ PHONE VERIFICATION (for personal QR links) ═══════════ -->
+<!-- v1.0: a QR/link sent to the wrong person by mistake shouldn't just let
+     them in as someone else - before finishing "login" from a personal QR,
+     ask for the mobile phone number on file for that identity and check it
+     matches. No password screen is reintroduced - the phone number is
+     something the intended employee already knows about themselves. -->
+<div class="screen" id="scr-verify-phone">
+  <div class="login-wrap">
+    <div class="login-logo">🔒</div>
+    <div class="login-title">אימות זהות</div>
+    <div class="login-sub" id="verify-phone-name"></div>
+
+    <div class="login-label" style="margin-top:24px;">הזן את מספר הטלפון הנייד שלך</div>
+    <input id="verify-phone-input" class="login-input" type="tel" inputmode="numeric" placeholder="050-0000000" dir="ltr" style="text-align:center;font-size:22px;" onkeydown="if(event.key==='Enter')confirmImportedPhone();">
+    <div id="verify-phone-error" style="display:none;color:#c62828;font-size:14px;margin-top:8px;text-align:center;font-weight:600;"></div>
+
+    <button class="login-btn" onclick="confirmImportedPhone()">אישור →</button>
+    <div class="login-note">הקישור נשלח בשמך — יש להזין את הטלפון הנייד שלך כדי לוודא שזה אכן אתה</div>
+  </div>
+</div>
+
 <!-- ═══════════ HOME SCREEN ═══════════ -->
 <div class="screen active" id="scr-home">
 
@@ -1437,6 +1458,28 @@ function _loginFallbackToManual() {
   var waitPane = document.getElementById('login-waiting-pane');
   if (waitPane) waitPane.style.display = 'none';
   if (mainPane) mainPane.style.display = '';
+}
+
+function confirmImportedPhone() {
+  var inp = document.getElementById('verify-phone-input');
+  var errEl = document.getElementById('verify-phone-error');
+  var entered = _normPhone(inp ? inp.value : '');
+  if (!entered) {
+    if (errEl) { errEl.textContent = 'יש להזין מספר טלפון'; errEl.style.display = ''; }
+    return;
+  }
+  var onFile = _normPhone(_urlImportedInspector && _urlImportedInspector.phone);
+  // If no phone is on file for this identity at all, there's nothing to
+  // check against - let them through rather than dead-ending someone whose
+  // record just never had a phone number filled in.
+  if (onFile && entered !== onFile) {
+    if (errEl) { errEl.textContent = '❌ מספר הטלפון לא תואם. אם הקישור הזה לא נשלח אליך, פנה למנהל המערכת.'; errEl.style.display = ''; }
+    if (inp) inp.value = '';
+    return;
+  }
+  if (errEl) errEl.style.display = 'none';
+  refreshHomeUser();
+  showScreen('home');
 }
 
 function _finishLoginSuccess(s, btn, origText) {
@@ -3841,10 +3884,17 @@ function goBackFromView() {
   // waiting pane (main UI hidden) and auto-fire the Face ID / fingerprint
   // dialog. If biometric fails or is cancelled, the main pane is revealed.
   // v1.0: a personal QR code (with name/email/phone baked in) skips the
-  // login screen entirely — the phone already knows who's using it.
+  // name-picker/login screen, but still asks the person to type the phone
+  // number on file for that identity — catches an accidentally-mis-sent
+  // link/QR without reintroducing a real password.
   if (_urlImportedInspector) {
-    refreshHomeUser();
-    showScreen('home');
+    var vNameEl = document.getElementById('verify-phone-name');
+    if (vNameEl) vNameEl.textContent = '👷 ' + _urlImportedInspector.name;
+    showScreen('verify-phone');
+    setTimeout(function() {
+      var inp = document.getElementById('verify-phone-input');
+      if (inp) inp.focus();
+    }, 100);
     return;
   }
 
