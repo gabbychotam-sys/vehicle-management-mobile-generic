@@ -723,35 +723,56 @@
     <div class="modal-title">⚙️ הגדרות</div>
 
     <!-- Inspector info -->
+    <!-- v1.0: identity now always arrives automatically via the personal QR
+         code - no manual name-picker here anymore. Just a readonly display,
+         plus a rarely-needed manual fallback tucked behind a toggle. -->
     <div class="modal-label" style="margin-top:6px;font-size:24px;color:var(--primary-color);font-weight:700;">👷 פרטי הפקח</div>
-    <div class="modal-label">בחר את שמך</div>
-    <select id="cfg-inspector-select" class="modal-input" style="background:#fff;cursor:pointer;" onchange="onCfgInspectorChange()">
-      <option value="">— בחר את שמך —</option>
-    </select>
-    <div id="cfg-inspector-info" style="display:none;background:#f0f7ff;border:1.5px solid #c8e0ff;border-radius:10px;padding:10px;margin:8px 0;font-size:16px;">
-      <div id="cfg-info-role" style="color:#666;font-size:14px;margin-bottom:6px;"></div>
-      <div id="cfg-info-phone" style="font-size:15px;" dir="ltr"></div>
-      <div id="cfg-info-email" style="color:#0066cc;font-size:15px;" dir="ltr"></div>
+    <div id="cfg-inspector-readonly" style="background:#e8f5e9;border:1.5px solid #a5d6a7;border-radius:10px;padding:12px;margin:8px 0;">
+      <div id="cfg-readonly-name" style="font-weight:700;font-size:18px;color:#2e7d32;"></div>
+      <div id="cfg-readonly-role" style="color:#666;font-size:14px;margin-top:2px;"></div>
+      <div id="cfg-readonly-phone" style="font-size:14px;margin-top:4px;" dir="ltr"></div>
+      <div id="cfg-readonly-email" style="color:#0066cc;font-size:14px;" dir="ltr"></div>
+    </div>
+    <button type="button" onclick="toggleInspectorManualPicker()" style="background:transparent;border:1px solid var(--primary-color);color:var(--primary-color);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit;-webkit-appearance:none;">🔧 שנה זיהוי ידנית</button>
+
+    <div id="cfg-inspector-manual" style="display:none;margin-top:10px;">
+      <div class="modal-label">בחר את שמך</div>
+      <select id="cfg-inspector-select" class="modal-input" style="background:#fff;cursor:pointer;" onchange="onCfgInspectorChange()">
+        <option value="">— בחר את שמך —</option>
+      </select>
+      <div id="cfg-inspector-info" style="display:none;background:#f0f7ff;border:1.5px solid #c8e0ff;border-radius:10px;padding:10px;margin:8px 0;font-size:16px;">
+        <div id="cfg-info-role" style="color:#666;font-size:14px;margin-bottom:6px;"></div>
+        <div id="cfg-info-phone" style="font-size:15px;" dir="ltr"></div>
+        <div id="cfg-info-email" style="color:#0066cc;font-size:15px;" dir="ltr"></div>
+      </div>
     </div>
 
     <!-- Send all cases by email -->
     <button class="modal-btn primary" onclick="emailAllCases()" style="width:100%;margin-top:14px;background:var(--primary-color);">📧 שלח לי את כל התיקים שלי במייל</button>
 
     <!-- Firebase connection -->
+    <!-- v1.0: same collapse-behind-toggle pattern as the desktop app - once
+         connected, show a plain status line instead of the raw fields. -->
     <div class="modal-label" style="margin-top:18px;font-size:24px;color:var(--primary-color);font-weight:700;border-top:2px solid #eee;padding-top:14px;">☁️ חיבור לתוכנת המחשב</div>
-    <div style="font-size:14px;color:#666;margin-bottom:10px;line-height:1.6;">
-      יש להזין כאן את <b>אותם 3 הפרטים</b> שהוזנו בתוכנת המחשב (הגדרות ← Firebase),
-      כדי שהתיקים יסתנכרנו בין הנייד למחשב.
+    <div id="mob-fb-connected-banner" style="display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#e8f5e9;border:1.5px solid #a5d6a7;border-radius:10px;padding:10px 12px;margin:8px 0;">
+      <span style="color:#2e7d32;font-weight:700;font-size:14px;">✅ מחובר</span>
+      <button type="button" onclick="toggleMobFbManual()" style="background:transparent;border:1px solid #a5d6a7;color:#2e7d32;padding:5px 10px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;-webkit-appearance:none;">🔧 שנה הגדרות חיבור</button>
     </div>
-    <div class="modal-label">API Key</div>
-    <input id="mob-fb-apiKey" class="modal-input" dir="ltr" placeholder="AIzaSy...">
-    <div class="modal-label">Database URL</div>
-    <input id="mob-fb-dbUrl" class="modal-input" dir="ltr" placeholder="https://xxx-default-rtdb...firebasedatabase.app">
-    <div class="modal-label">Project ID</div>
-    <input id="mob-fb-projectId" class="modal-input" dir="ltr" placeholder="my-project-12345">
-    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
-      <button class="modal-btn primary" onclick="saveMobFbCfg()" style="background:var(--primary-color);">💾 שמור והתחבר</button>
-      <span id="mob-fb-status" style="font-size:14px;color:#666;">לא מוגדר</span>
+    <div id="mob-fb-manual">
+      <div style="font-size:14px;color:#666;margin-bottom:10px;line-height:1.6;">
+        יש להזין כאן את <b>אותם 3 הפרטים</b> שהוזנו בתוכנת המחשב (הגדרות ← Firebase),
+        כדי שהתיקים יסתנכרנו בין הנייד למחשב.
+      </div>
+      <div class="modal-label">API Key</div>
+      <input id="mob-fb-apiKey" class="modal-input" dir="ltr" placeholder="AIzaSy...">
+      <div class="modal-label">Database URL</div>
+      <input id="mob-fb-dbUrl" class="modal-input" dir="ltr" placeholder="https://xxx-default-rtdb...firebasedatabase.app">
+      <div class="modal-label">Project ID</div>
+      <input id="mob-fb-projectId" class="modal-input" dir="ltr" placeholder="my-project-12345">
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+        <button class="modal-btn primary" onclick="saveMobFbCfg()" style="background:var(--primary-color);">💾 שמור והתחבר</button>
+        <span id="mob-fb-status" style="font-size:14px;color:#666;">לא מוגדר</span>
+      </div>
     </div>
 
     <!-- Appearance -->
@@ -1606,7 +1627,20 @@ function setFontSize(size) {
 
 // ═══ SETTINGS ═══
 function openSettings() {
-  // Populate the dropdown if not already done
+  // v1.0: show the auto-detected identity as plain readonly text; the
+  // dropdown-based picker only appears if someone explicitly asks to
+  // override it via "🔧 שנה זיהוי ידנית".
+  var i = loadInspector() || {};
+  var readonlyName = document.getElementById('cfg-readonly-name');
+  var readonlyRole = document.getElementById('cfg-readonly-role');
+  var readonlyPhone = document.getElementById('cfg-readonly-phone');
+  var readonlyEmail = document.getElementById('cfg-readonly-email');
+  if (readonlyName) readonlyName.textContent = i.name ? ('👷 ' + i.name) : 'לא זוהה';
+  if (readonlyRole) readonlyRole.textContent = i.role || '';
+  if (readonlyPhone) readonlyPhone.textContent = i.phone ? ('📱 ' + i.phone) : '';
+  if (readonlyEmail) readonlyEmail.textContent = i.email ? ('📧 ' + i.email) : '';
+
+  // Populate the manual-fallback dropdown too (only used if toggled open)
   var sel = document.getElementById('cfg-inspector-select');
   if (sel && !sel._sortedList) {
     var sorted = STAFF_LIST.slice().sort(function(a, b) {
@@ -1619,8 +1653,6 @@ function openSettings() {
     sel.innerHTML = html;
     sel._sortedList = sorted;
   }
-  // Pre-select current inspector
-  var i = loadInspector() || {};
   if (sel && sel._sortedList) {
     var matchIdx = -1;
     sel._sortedList.forEach(function(s, idx) {
@@ -1634,6 +1666,16 @@ function openSettings() {
   document.getElementById('settings-modal').classList.add('open');
 }
 
+function toggleInspectorManualPicker() {
+  var el = document.getElementById('cfg-inspector-manual');
+  if (el) el.style.display = (el.style.display === 'none' || !el.style.display) ? 'block' : 'none';
+}
+
+function toggleMobFbManual() {
+  var el = document.getElementById('mob-fb-manual');
+  if (el) el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+}
+
 function fillMobFbCfg() {
   var cfg = loadCfg();
   var a = document.getElementById('mob-fb-apiKey');
@@ -1644,6 +1686,15 @@ function fillMobFbCfg() {
   if (p) p.value = cfg.projectId || '';
   var status = document.getElementById('mob-fb-status');
   if (status) status.textContent = fbReady ? '✓ מחובר' : (cfg.apiKey ? 'מוגדר, לא מחובר' : 'לא מוגדר');
+
+  // v1.0: collapse the raw fields behind a "connected" banner once configured,
+  // same pattern as the desktop app - only show the form itself if nothing
+  // is configured yet, or if the person explicitly asks to change it.
+  var isConfigured = !!(cfg.apiKey && cfg.databaseURL);
+  var banner = document.getElementById('mob-fb-connected-banner');
+  var manual = document.getElementById('mob-fb-manual');
+  if (banner) banner.style.display = isConfigured ? 'flex' : 'none';
+  if (manual) manual.style.display = isConfigured ? 'none' : 'block';
 }
 
 function saveMobFbCfg() {
