@@ -592,6 +592,7 @@
       <div style="font-size:50px;margin-bottom:14px;">📷</div>
       <div style="font-size:18px;font-weight:700;color:var(--primary-color);margin-bottom:10px;">יש לסרוק את הברקוד האישי</div>
       <div style="font-size:15px;color:#666;line-height:1.6;">קבל את הברקוד האישי שלך ממנהל המערכת בתוכנת המחשב (לשונית "עובדים"), וסרוק אותו כדי להתחיל.</div>
+      <div id="debug-current-url" style="margin-top:24px;font-size:10px;color:rgba(255,255,255,0.35);direction:ltr;word-break:break-all;padding:0 16px;"></div>
     </div>
   </div>
 </div>
@@ -3961,6 +3962,11 @@ function goBackFromView() {
     }, 100);
   } else {
     showScreen('login');
+    // v1.0: quiet debug line - shows exactly what URL the page actually
+    // loaded with, so a scan that "doesn't work" can be diagnosed by just
+    // looking at the screen instead of guessing back and forth.
+    var dbgEl = document.getElementById('debug-current-url');
+    if (dbgEl) dbgEl.textContent = window.location.href;
   }
 
   // Init Firebase (waits for SDK to be loaded)
