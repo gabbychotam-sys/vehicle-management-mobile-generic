@@ -863,8 +863,13 @@ var _urlImportedInspector = null;
         _urlImportedInspector = { name: name, email: params.get('email') || '', phone: params.get('phone') || '', role: '' };
         saveInspector(_urlImportedInspector);
       }
-      var cleanUrl = window.location.origin + window.location.pathname;
-      window.history.replaceState({}, document.title, cleanUrl);
+      // v1.0: deliberately NOT stripping the query params from the URL here.
+      // If the params are removed, "Add to Home Screen" (what people think of
+      // as "installing" the web app) saves a bookmark to the now-clean,
+      // param-less URL - so every future tap of that home-screen icon loads
+      // with nothing to import, silently falling back to the login screen.
+      // Keeping the params means the saved icon re-applies the identity and
+      // config every single time it's opened, which is what we actually want.
     }
   } catch (e) { console.warn('[_importConfigFromUrl] failed:', e); }
 })();
