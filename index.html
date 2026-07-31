@@ -609,7 +609,7 @@
 
       <button class="login-btn" onclick="doLogin()" id="login-btn-go" disabled style="opacity:0.5;">המשך →</button>
 
-      <div class="login-note">השמות הינם רשימת הפקחים והעובדים<br>של [שם הרשות]<br><span style="color:#10b981;font-weight:700;">🔒 כניסה מאובטחת בזיהוי פנים / טביעת אצבע</span></div>
+      <div class="login-note">השמות הינם רשימת הפקחים והעובדים<br>של [שם הרשות]</div>
     </div>
   </div>
 </div>
@@ -817,6 +817,25 @@ function loadCfg() {
   } catch(e) { return Object.assign({}, FB_DEFAULTS); }
 }
 function saveCfg(c) { try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } catch(e) {} }
+
+// v1.0: allow the whole Firebase connection to arrive via URL query params
+// (?apiKey=...&databaseURL=...&projectId=...) so scanning a QR code that
+// encodes this link auto-configures the app — no manual typing needed.
+// Then strip the params from the visible URL so they don't linger in
+// history/screenshots.
+(function _importConfigFromUrl() {
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var apiKey = params.get('apiKey');
+    var databaseURL = params.get('databaseURL');
+    var projectId = params.get('projectId');
+    if (apiKey && databaseURL) {
+      saveCfg({ apiKey: apiKey, databaseURL: databaseURL, projectId: projectId || '' });
+      var cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  } catch (e) { console.warn('[_importConfigFromUrl] failed:', e); }
+})();
 function loadInspector() {
   try { return JSON.parse(localStorage.getItem(INSPECTOR_KEY)) || null; } catch(e) { return null; }
 }
@@ -1370,13 +1389,10 @@ function onInspectorSelected() {
   var sel = document.getElementById('login-inspector-select');
   var info = document.getElementById('login-selected-info');
   var btn = document.getElementById('login-btn-go');
-  var pwdWrap = document.getElementById('login-password-wrap');
-  var pwdInp  = document.getElementById('login-password');
   var idx = sel.value;
 
   if (idx === '' || !sel._sortedList) {
     info.style.display = 'none';
-    if (pwdWrap) pwdWrap.style.display = 'none';
     btn.disabled = true;
     btn.style.opacity = '0.5';
     return;
@@ -1391,18 +1407,10 @@ function onInspectorSelected() {
   document.getElementById('login-info-email').textContent = s.email ? '📧 ' + s.email : '';
   info.style.display = '';
 
-  // v3.35: enrolled → biometric only (no password field). Not enrolled → show
-  // the password field; no hint about what the password is — the inspectors
-  // know their initial password is their phone number.
-  var enrolled = !!_biomGetCredId(s.email);
-  if (enrolled && _biomSupported()) {
-    if (pwdWrap) pwdWrap.style.display = 'none';
-    btn.textContent = '🔓 כניסה';
-  } else {
-    if (pwdWrap) pwdWrap.style.display = '';
-    if (pwdInp) { pwdInp.value = ''; setTimeout(function(){ pwdInp.focus(); }, 50); }
-    btn.textContent = 'כניסה →';
-  }
+  // v1.0: no password/biometric anymore — picking a name is enough, matching
+  // the personal app's "silent login" pattern (anonymous Firebase auth under
+  // the hood just to satisfy the DB security rules, no real per-user check).
+  btn.textContent = 'כניסה →';
   btn.disabled = false;
   btn.style.opacity = '1';
 }
@@ -1435,80 +1443,32 @@ function doLogin() {
     return;
   }
   var s = sel._sortedList[parseInt(idx, 10)];
-  if (!s || !s.email) {
+  if (!s) {
     alert('שגיאה - אנא נסה שוב');
-    return;
-  }
-  if (!fbAuth) {
-    alert('Firebase Auth לא זמין. בדוק חיבור לאינטרנט ונסה שוב.');
     return;
   }
   var btn = document.getElementById('login-btn-go');
   var origText = btn ? btn.textContent : '';
-  var pwdInp = document.getElementById('login-password');
 
-  var enrolled = !!_biomGetCredId(s.email);
-
-  // ─── PATH A: biometric is already enrolled on this device ───
-  if (enrolled && _biomSupported()) {
-    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = '🔓 ממתין לזיהוי...'; }
-    _biomAuthenticate(s.email).then(function() {
-      // Biometric OK. If the Firebase session is still alive (it persists in
-      // localStorage by default), we're done. Otherwise show the inline
-      // password field and ask the user to re-enter their password.
-      if (fbAuth.currentUser && (fbAuth.currentUser.email || '').toLowerCase() === s.email.toLowerCase()) {
-        _finishLoginSuccess(s, btn, origText);
-      } else {
-        alert('פג תוקף החיבור לשרת. הזן סיסמה כדי להתחבר מחדש.');
-        var pwdWrap = document.getElementById('login-password-wrap');
-        if (pwdWrap) pwdWrap.style.display = '';
-        if (pwdInp) { pwdInp.value = ''; pwdInp.focus(); }
-        if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = origText; }
-        _biomClear(s.email);
-      }
-    }).catch(function(err) {
-      console.warn('[biom auth] failed:', err);
-      if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = origText; }
-      // v3.37: cancel / fail → reveal the manual pane, no alert
-      _loginFallbackToManual();
-    });
+  // v1.0: no password, no biometric — picking a name is enough. Firebase
+  // Auth is still used underneath (anonymous sign-in) purely to satisfy the
+  // database's "auth != null" security rules, not to verify who the person is.
+  if (!fbAuth) {
+    _finishLoginSuccess(s, btn, origText);
     return;
   }
-
-  // ─── PATH B: first-time login on this device — use the inline password field ───
-  var pwd = _normPhone(pwdInp ? pwdInp.value : '');
-  if (!pwd) {
-    alert('אנא הזן סיסמה.');
-    if (pwdInp) pwdInp.focus();
-    return;
-  }
-
   if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = '⏳ מתחבר...'; }
-  fbAuth.signInWithEmailAndPassword(s.email, pwd).then(function() {
-    if (pwdInp) pwdInp.value = '';
-    // After Firebase OK — try to enroll a biometric credential silently
-    if (!_biomSupported()) {
-      _finishLoginSuccess(s, btn, origText);
-      return;
-    }
-    _biomEnroll(s.email, s.name).then(function() {
-      _finishLoginSuccess(s, btn, origText);
-    }).catch(function(err) {
-      console.warn('[biom enroll] failed:', err);
-      _finishLoginSuccess(s, btn, origText);
-    });
+  if (fbAuth.currentUser) {
+    _finishLoginSuccess(s, btn, origText);
+    return;
+  }
+  fbAuth.signInAnonymously().then(function() {
+    _finishLoginSuccess(s, btn, origText);
   }).catch(function(err) {
-    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = origText; }
-    var code = (err && err.code) || '';
-    var msg = '❌ סיסמה שגויה';
-    if (code === 'auth/user-not-found')           msg = '❌ הפקח לא רשום. פנה לגבי.';
-    else if (code === 'auth/wrong-password')      msg = '❌ סיסמה שגויה';
-    else if (code === 'auth/invalid-credential')  msg = '❌ פרטי התחברות שגויים';
-    else if (code === 'auth/network-request-failed') msg = '❌ אין חיבור לאינטרנט';
-    else if (code === 'auth/too-many-requests')   msg = '❌ נחסם זמנית בגלל ניסיונות רבים. נסה בעוד כמה דקות.';
-    alert(msg);
-    if (pwdInp) { pwdInp.value = ''; pwdInp.focus(); }
-    console.warn('[doLogin] Firebase signin failed:', err);
+    console.warn('[doLogin] anonymous signin failed:', err);
+    // Even if Firebase Auth itself is unreachable, still let the person in —
+    // this is just a name picker, not a real access-control check.
+    _finishLoginSuccess(s, btn, origText);
   });
 }
 
@@ -3231,7 +3191,10 @@ function _askSendUpdate(c) {
 //  share sheet so they can email it. The file's shape is {id: case} —
 //  exactly what the management software already reads from Firebase.
 // ═══════════════════════════════════════════════════════════════════
-var MANAGER_EMAILS = ['admin@example.com'];
+// ⚠️ TEMPORARY, FOR GABI'S OWN TESTING ONLY (2026-07-31) — reset to a
+// placeholder like 'admin@example.com' before building anything meant for
+// a real customer, same caveat as FB_DEFAULTS in the desktop app.
+var MANAGER_EMAILS = ['gabbychotam@gmail.com'];
 
 // A case is "pending" if it was never sent in a file, or was edited after
 // the last send (so completions to old cases get re-sent too).
