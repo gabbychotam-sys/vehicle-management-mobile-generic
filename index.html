@@ -3,8 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- v1.0: apple-mobile-web-app-capable deliberately removed. This legacy tag
+     independently forces standalone/fullscreen mode when added to the home
+     screen - completely separate from, and overriding, manifest.json's
+     "display" property. iOS gives standalone-mode pages fully isolated
+     storage from Safari/Chrome (confirmed via Apple developer forums), so
+     as long as this tag was present, no verification/login state saved while
+     browsing could ever be seen from a home-screen icon, no matter what the
+     manifest said. Removing it lets "Add to Home Screen" create a plain
+     bookmark that opens in the browser itself, sharing its storage. -->
 <meta name="apple-mobile-web-app-title" content="פיקוח רכבים">
 <meta name="theme-color" content="#1a6e3c">
 <link rel="manifest" href="manifest.json">
