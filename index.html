@@ -14,7 +14,12 @@
      bookmark that opens in the browser itself, sharing its storage. -->
 <meta name="apple-mobile-web-app-title" content="פיקוח רכבים">
 <meta name="theme-color" content="#1a6e3c">
-<link rel="manifest" href="manifest.json">
+<!-- v1.0: manifest link removed entirely (was manifest.json with
+     display:"browser", which some iOS Chrome versions apparently still
+     don't fully honor - the previous fix wasn't enough). With NO manifest
+     at all, "Add to Home Screen" has nothing left to interpret as "make
+     this a standalone app" and can only create a plain bookmark that opens
+     in the browser itself, sharing its normal storage. -->
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
