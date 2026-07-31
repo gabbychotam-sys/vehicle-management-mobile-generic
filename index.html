@@ -578,38 +578,13 @@
     <div class="login-title">פיקוח רכבים</div>
     <div class="login-sub">[שם הרשות]</div>
 
-    <!-- v3.37: waiting pane — shown while biometric auth fires automatically.
-         If biometric fails / is cancelled, this pane hides and the main pane
-         (name picker + password) is revealed as a fallback. -->
-    <div id="login-waiting-pane" style="display:none;text-align:center;padding:20px 0;">
-      <div style="font-size:60px;margin-bottom:14px;">🔐</div>
-      <div style="font-size:24px;font-weight:700;color:var(--primary-color);margin-bottom:6px;">ממתין לזיהוי...</div>
-      <div style="font-size:16px;color:#666;margin-bottom:24px;">סרוק פנים או טביעת אצבע</div>
-      <button class="login-btn" onclick="_loginFallbackToManual()" style="background:#eef1f5;color:#555;">השתמש בשם וסיסמה</button>
-    </div>
-
-    <!-- Main pane — name picker + password (first-time + biometric-failed fallback) -->
-    <div id="login-main-pane">
-      <div class="login-label">בחר את שמך מהרשימה</div>
-      <select id="login-inspector-select" class="login-input" style="background:#fff;cursor:pointer;" onchange="onInspectorSelected()">
-        <option value="">— בחר את שמך —</option>
-      </select>
-
-      <div id="login-selected-info" style="display:none;background:#f0f7ff;border:1.5px solid #c8e0ff;border-radius:12px;padding:14px;margin:12px 0;font-size:18px;">
-        <div id="login-info-name" style="font-weight:700;font-size:22px;margin-bottom:4px;"></div>
-        <div id="login-info-role" style="color:#666;font-size:16px;margin-bottom:8px;"></div>
-        <div id="login-info-phone" style="font-size:17px;" dir="ltr"></div>
-        <div id="login-info-email" style="color:#0066cc;font-size:17px;" dir="ltr"></div>
-      </div>
-
-      <div id="login-password-wrap" style="display:none;margin-top:12px;">
-        <div class="login-label">סיסמה</div>
-        <input id="login-password" class="login-input" type="password" autocomplete="current-password" placeholder="••••••••" dir="ltr" style="text-align:center;letter-spacing:3px;font-size:24px;">
-      </div>
-
-      <button class="login-btn" onclick="doLogin()" id="login-btn-go" disabled style="opacity:0.5;">המשך →</button>
-
-      <div class="login-note">השמות הינם רשימת הפקחים והעובדים<br>של [שם הרשות]</div>
+    <!-- v1.0: the name-picker/password screen is gone entirely - normal use
+         always arrives via a personal QR link (see scr-verify-phone). This is
+         only a fallback for someone opening the bare site with no link at all. -->
+    <div style="text-align:center;padding:20px 0;">
+      <div style="font-size:50px;margin-bottom:14px;">📷</div>
+      <div style="font-size:18px;font-weight:700;color:var(--primary-color);margin-bottom:10px;">יש לסרוק את הברקוד האישי</div>
+      <div style="font-size:15px;color:#666;line-height:1.6;">קבל את הברקוד האישי שלך ממנהל המערכת בתוכנת המחשב (לשונית "עובדים"), וסרוק אותו כדי להתחיל.</div>
     </div>
   </div>
 </div>
@@ -850,6 +825,12 @@ function saveCfg(c) { try { localStorage.setItem(CFG_KEY, JSON.stringify(c)); } 
 // picking a name from the list; here it happens automatically before the
 // login screen is even shown, so scanning a personal QR skips login entirely.
 var _urlImportedInspector = null;
+// v1.0: phone verification only ever needs to happen once per device - after
+// that, every future open (including from a saved "Add to Home Screen" icon)
+// goes straight in with no screen at all.
+var VERIFIED_KEY = 'galil_mobile_verified_v1';
+function isDeviceVerified() { try { return localStorage.getItem(VERIFIED_KEY) === '1'; } catch (e) { return false; } }
+function setDeviceVerified() { try { localStorage.setItem(VERIFIED_KEY, '1'); } catch (e) {} }
 (function _importConfigFromUrl() {
   try {
     var params = new URLSearchParams(window.location.search);
@@ -1498,6 +1479,7 @@ function confirmImportedPhone() {
     return;
   }
   if (errEl) errEl.style.display = 'none';
+  setDeviceVerified();
   refreshHomeUser();
   showScreen('home');
 }
@@ -3900,14 +3882,16 @@ function goBackFromView() {
   // Apply saved theme/color/size first thing
   try { applyTheme(); } catch(e){}
 
-  // v3.37: pre-select last inspector. If biometric is enrolled, show the
-  // waiting pane (main UI hidden) and auto-fire the Face ID / fingerprint
-  // dialog. If biometric fails or is cancelled, the main pane is revealed.
-  // v1.0: a personal QR code (with name/email/phone baked in) skips the
-  // name-picker/login screen, but still asks the person to type the phone
-  // number on file for that identity — catches an accidentally-mis-sent
-  // link/QR without reintroducing a real password.
-  if (_urlImportedInspector) {
+  // v1.0: once this device has verified its phone number one time, every
+  // future open goes straight to home — no screen at all, forever.
+  if (isDeviceVerified() && loadInspector()) {
+    refreshHomeUser();
+    showScreen('home');
+  } else if (_urlImportedInspector) {
+    // A personal QR code (name/email/phone baked in) skips the old
+    // name-picker/login screen entirely, but still asks for the phone
+    // number on file for that identity once — catches an accidentally
+    // mis-sent link without reintroducing a real password.
     var vNameEl = document.getElementById('verify-phone-name');
     if (vNameEl) vNameEl.textContent = '👷 ' + _urlImportedInspector.name;
     showScreen('verify-phone');
@@ -3915,36 +3899,10 @@ function goBackFromView() {
       var inp = document.getElementById('verify-phone-input');
       if (inp) inp.focus();
     }, 100);
-    return;
+  } else {
+    showScreen('login');
   }
 
-  try { populateInspectorDropdown(); } catch(e){}
-  var insp = loadInspector();
-  if (insp) {
-    var _sel = document.getElementById('login-inspector-select');
-    if (_sel && _sel._sortedList) {
-      for (var _i = 0; _i < _sel._sortedList.length; _i++) {
-        if (_sel._sortedList[_i].name === insp.name) {
-          _sel.value = String(_i);
-          if (typeof onInspectorSelected === 'function') onInspectorSelected();
-          break;
-        }
-      }
-    }
-  }
-  showScreen('login');
-
-  // v3.37: returning user with enrolled biometric → hide main UI, fire biometric
-  var _shouldAutoBiom = insp && insp.email && _biomGetCredId(insp.email) && _biomSupported();
-  if (_shouldAutoBiom) {
-    var mainPane = document.getElementById('login-main-pane');
-    var waitPane = document.getElementById('login-waiting-pane');
-    if (mainPane) mainPane.style.display = 'none';
-    if (waitPane) waitPane.style.display = '';
-    setTimeout(function() {
-      try { doLogin(); } catch(e) { console.warn('[auto-biom] failed:', e); _loginFallbackToManual(); }
-    }, 400);
-  }
   // Init Firebase (waits for SDK to be loaded)
   if (typeof firebase !== 'undefined') {
     initFirebase();
